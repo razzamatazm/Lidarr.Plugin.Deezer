@@ -17,7 +17,7 @@
             Internalize="true"
             InputAssemblies="@(InputAssemblies)"
             TargetKind="Dll"
-            LibraryPath="..\..\..\Lidarr\_artifacts\win-x64\net6.0\old\Lidarr\"
+            LibraryPath="..\..\ext\Lidarr\_output\net6.0\;$(OutputPath)"
             OutputFile="$(OutputPath)\$(AssemblyName).dll"
         />
     </Target>

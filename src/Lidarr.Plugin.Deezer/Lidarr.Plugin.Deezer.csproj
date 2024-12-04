@@ -21,27 +21,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="FluentValidation">
-      <HintPath>..\..\..\Lidarr\_artifacts\win-x64\net6.0\old\Lidarr\FluentValidation.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Lidarr.Common">
-      <HintPath>..\..\..\Lidarr\_artifacts\win-x64\net6.0\old\Lidarr\Lidarr.Common.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Lidarr.Core">
-      <HintPath>..\..\..\Lidarr\_artifacts\win-x64\net6.0\old\Lidarr\Lidarr.Core.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="NLog">
-      <HintPath>..\..\..\Lidarr\_artifacts\win-x64\net6.0\old\Lidarr\NLog.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
+    <ProjectReference Include="..\..\ext\Lidarr\src\NzbDrone.Common\Lidarr.Common.csproj" />
+    <ProjectReference Include="..\..\ext\Lidarr\src\NzbDrone.Core\Lidarr.Core.csproj" />
   </ItemGroup>
-	
-  <Target Name="ZipOutputPath" AfterTargets="Publish">
-    <ZipDirectory SourceDirectory="$(PublishDir)" DestinationFile="$(SolutionDir)\..\Lidarr.Plugin.Deezer.$(TargetFramework).zip" />
-  </Target>
 	
   <Target Name="PostBuild" AfterTargets="ILRepacker">
     <Exec Command="COPY &quot;$(TargetPath)&quot; &quot;C:\ProgramData\Lidarr\plugins\TrevTV\Lidarr.Plugin.Deezer&quot;" />
