@@ -76,6 +76,8 @@ namespace NzbDrone.Core.Indexers.Deezer
 
         private IEnumerable<IndexerRequest> GetRequests(string searchParameters)
         {
+            DeezerAPI.Instance?.TryUpdateToken();
+
             for (var page = 0; page < MaxPages; page++)
             {
                 JObject data = new()
