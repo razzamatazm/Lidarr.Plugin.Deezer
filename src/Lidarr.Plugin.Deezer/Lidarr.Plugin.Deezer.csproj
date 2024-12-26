@@ -26,7 +26,7 @@
   </ItemGroup>
 	
   <Target Name="PostBuild" AfterTargets="ILRepacker">
-    <Exec ContinueOnError="true" Command="COPY &quot;$(TargetPath)&quot; &quot;C:\ProgramData\Lidarr\plugins\TrevTV\Lidarr.Plugin.Qobuz&quot;" />
+    <Exec ContinueOnError="true" Command="COPY &quot;$(TargetPath)&quot; &quot;C:\ProgramData\Lidarr\plugins\TrevTV\Lidarr.Plugin.Deezer&quot;" />
   </Target>
 
 </Project>
