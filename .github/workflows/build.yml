@@ -2,7 +2,7 @@ name: Build Plugin
 on:
   push:
     branches:
-      - master
+      - main
     tags-ignore:
       - '**'
   pull_request:
@@ -17,6 +17,8 @@ env:
   # Disable sending usage data to Microsoft
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   PLUGIN_NAME: Lidarr.Plugin.Deezer
+  PLUGIN_VERSION: 10.0.1.${{ github.run_number }}
+  MINIMUM_LIDARR_VERSION: 2.2.4.4129
   DOTNET_VERSION: 8.0.404
 
 jobs:
@@ -41,10 +43,50 @@ jobs:
         id: gen_meta
         run: |
           echo "branch=${GITHUB_REF#refs/heads/}" | tr '/' '-'  >> $GITHUB_OUTPUT
+      - name: Update Version Info
+        run: |
+          sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$PLUGIN_VERSION<\/AssemblyVersion>/g" src/Directory.Build.props
+          sed -i'' -e "s/<AssemblyConfiguration>[\$()A-Za-z-]\+<\/AssemblyConfiguration>/<AssemblyConfiguration>${{ steps.gen_meta.outputs.branch }}<\/AssemblyConfiguration>/g" src/Directory.Build.props
+          sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$MINIMUM_LIDARR_VERSION<\/AssemblyVersion>/g" ext/Lidarr/src/Directory.Build.props
       - name: Build
-        run: dotnet build src/*.sln -c Release -f ${{ matrix.framework }}
+        run: |
+          dotnet restore src/*.sln
+          dotnet build src/*.sln -c Release -f ${{ matrix.framework }}
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PLUGIN_NAME }}.${{ matrix.framework }}
           path: ./_plugins/net6.0/${{ env.PLUGIN_NAME }}/${{ env.PLUGIN_NAME }}.*
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          tags: true
+      - name: Generate Changelog
+        id: generate_changelog
+        run: |
+          echo "Changelog:" > changelog.txt
+          git log --oneline $(git describe --tags --abbrev=0)..HEAD | awk '{print "- " substr($0, index($0,$2))}' >> changelog.txt
+      - name: Display Changelog
+        run: cat changelog.txt
+      - name: Download Artifact
+        uses: dawidd6/action-download-artifact@v7
+        with:
+          name: ${{ env.PLUGIN_NAME }}.net6.0
+          skip_unpack: true
+          if_no_artifact_found: warn
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.PLUGIN_VERSION }}
+          name: ${{ env.PLUGIN_VERSION }}
+          body_path: changelog.txt
+          draft: true
+          prerelease: false
+          files: |
+            ${{ env.PLUGIN_NAME }}.net6.0.zip
