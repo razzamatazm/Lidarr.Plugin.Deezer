@@ -33,21 +33,18 @@ namespace NzbDrone.Core.Download.Clients.Deezer.Queue
                 bitrate = Bitrate.MP3_128;
 
             DownloadItem item = null;
-            if (url.Contains("deezer", StringComparison.CurrentCultureIgnoreCase))
+            if (DeezerURL.TryParse(url, out var deezerUrl))
             {
-                if (DeezerURL.TryParse(url, out var deezerUrl))
+                item = new()
                 {
-                    item = new()
-                    {
-                        ID = Guid.NewGuid().ToString(),
-                        Status = DownloadItemStatus.Queued,
-                        Bitrate = bitrate,
-                        RemoteAlbum = remoteAlbum,
-                        _deezerUrl = deezerUrl,
-                    };
+                    ID = Guid.NewGuid().ToString(),
+                    Status = DownloadItemStatus.Queued,
+                    Bitrate = bitrate,
+                    RemoteAlbum = remoteAlbum,
+                    _deezerUrl = deezerUrl,
+                };
 
-                    await item.SetDeezerData();
-                }
+                await item.SetDeezerData();
             }
 
             return item;
