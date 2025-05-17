@@ -18,7 +18,10 @@ namespace NzbDrone.Core.Indexers.Deezer
         {
             var pageableRequests = new IndexerPageableRequestChain();
 
-            Dictionary<string, string> data = new()
+            pageableRequests.AddTier(GetRequests($"never gonna give you up"));
+
+            // TODO: this seems to cause problems in some cases, but I have yet to debug further, the above is a basic workaround which should work fine
+            /*Dictionary<string, string> data = new()
             {
                 { "gateway_input", new JObject()
                     {
@@ -49,7 +52,7 @@ namespace NzbDrone.Core.Indexers.Deezer
             pageableRequests.Add(new[]
             {
                 req
-            });
+            });*/
 
             return pageableRequests;
         }
