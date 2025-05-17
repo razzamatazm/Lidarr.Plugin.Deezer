@@ -33,12 +33,13 @@ namespace NzbDrone.Core.Indexers.Deezer
 
         public override IIndexerRequestGenerator GetRequestGenerator()
         {
-            if (string.IsNullOrEmpty(Settings.Arl))
+            // note: Firehawk no longer provides up-to-date Deezer tokens so this has no use anymore.
+            /*if (string.IsNullOrEmpty(Settings.Arl))
             {
                 var arlTask = ARLUtilities.GetFirstValidARL();
                 arlTask.Wait();
                 Settings.Arl = arlTask.Result;
-            }
+            }*/
 
             DeezerAPI.Instance?.CheckAndSetARL(Settings.Arl);
 
