@@ -112,9 +112,18 @@ namespace NzbDrone.Core.Download.Clients.Deezer.Queue
         private async Task DoTrackDownload(long track, DeezerSettings settings, CancellationToken cancellation = default)
         {
             var page = await DeezerAPI.Instance.Client.GWApi.GetTrackPage(track, cancellation);
+
             var songTitle = page["DATA"]!["SNG_TITLE"]!.ToString();
-            var artistName = page["DATA"]!["ART_NAME"]!.ToString();
+            var songVersion = page["DATA"]?["VERSION"]?.ToString() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(songVersion))
+                songTitle = $"{songTitle} {songVersion}";
+
             var albumTitle = page["DATA"]!["ALB_TITLE"]!.ToString();
+            var albumVersion = _deezerAlbum["DATA"]?["VERSION"]?.ToString() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(albumVersion))
+                albumTitle = $"{albumTitle} {albumVersion}";
+
+            var artistName = page["DATA"]!["ART_NAME"]!.ToString();
             var duration = page["DATA"]!["DURATION"]!.Value<int>();
 
             var ext = Bitrate == Bitrate.FLAC ? "flac" : "mp3";

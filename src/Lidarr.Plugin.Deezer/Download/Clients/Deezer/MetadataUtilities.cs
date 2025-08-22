@@ -11,10 +11,20 @@ namespace NzbDrone.Core.Download.Clients.Deezer
     {
         public static string GetFilledTemplate(string template, string ext, JToken deezerPage, JToken deezerAlbumPage)
         {
+            var songTitle = deezerPage["DATA"]!["SNG_TITLE"]!.ToString();
+            var songVersion = deezerPage["DATA"]?["VERSION"]?.ToString() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(songVersion))
+                songTitle = $"{songTitle} {songVersion}";
+
+            var albumTitle = deezerPage["DATA"]!["ALB_TITLE"]!.ToString();
+            var albumVersion = deezerAlbumPage["DATA"]?["VERSION"]?.ToString() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(albumVersion))
+                albumTitle = $"{albumTitle} {albumVersion}";
+
             var releaseDate = DateTime.Parse(deezerPage["DATA"]!["PHYSICAL_RELEASE_DATE"]!.ToString(), CultureInfo.InvariantCulture);
             return GetFilledTemplate_Internal(template,
-                deezerPage["DATA"]!["SNG_TITLE"]!.ToString(),
-                deezerPage["DATA"]!["ALB_TITLE"]!.ToString(),
+                songTitle,
+                albumTitle,
                 deezerAlbumPage["DATA"]!["ART_NAME"]!.ToString(),
                 deezerPage["DATA"]!["ART_NAME"]!.ToString(),
                 deezerAlbumPage["DATA"]!["ARTISTS"]!.Select(a => a["ART_NAME"]!.ToString()).ToArray(),
