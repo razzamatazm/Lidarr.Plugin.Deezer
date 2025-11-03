@@ -1,6 +1,8 @@
 # Deezer for Lidarr
 This plugin provides a Deezer indexer and downloader client for Lidarr using direct communication rather than using Deemix as a middleman.
 
+### ⚠️ WARNING: Deezer seems to be cracking down on downloading tools and this wasn't designed super well for that, I've made minor changes to try to improve it, but there's still no guarantee you won't be limited or banned. ⚠️
+
 ## Installation
 This requires your Lidarr setup to be using the `plugins` branch. My docker-compose is setup like the following.
 ```yml

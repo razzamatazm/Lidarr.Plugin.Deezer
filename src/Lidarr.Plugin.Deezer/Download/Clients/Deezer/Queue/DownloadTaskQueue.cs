@@ -45,7 +45,7 @@ namespace NzbDrone.Core.Download.Clients.Deezer.Queue
 
         private async Task BackgroundProcessing(CancellationToken stoppingToken = default)
         {
-            using SemaphoreSlim semaphore = new(3, 3);
+            using SemaphoreSlim semaphore = new(1, 1);
 
             async Task HandleTask(DownloadItem item, Task task)
             {

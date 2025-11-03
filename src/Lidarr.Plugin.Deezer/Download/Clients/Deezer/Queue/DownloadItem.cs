@@ -77,7 +77,7 @@ namespace NzbDrone.Core.Download.Clients.Deezer.Queue
         public async Task DoDownload(DeezerSettings settings, Logger logger, CancellationToken cancellation = default)
         {
             List<Task> tasks = new();
-            using SemaphoreSlim semaphore = new(3, 3);
+            using SemaphoreSlim semaphore = new(1, 1);
             foreach (var (trackId, trackSize) in _tracks)
             {
                 tasks.Add(Task.Run(async () =>
