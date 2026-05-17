@@ -3,7 +3,6 @@ using System.Net;
 using System.Text;
 using System.Linq;
 using DeezNET;
-using System;
 
 namespace NzbDrone.Plugin.Deezer
 {
@@ -21,7 +20,6 @@ namespace NzbDrone.Plugin.Deezer
         public DeezerClient Client => _client;
 
         private DeezerClient _client;
-        private DateTime _lastArlUpdate;
         private string _apiToken => _client.GWApi.ActiveUserData["checkForm"]?.ToString() ?? "null";
 
         internal bool CheckAndSetARL(string arl)
@@ -31,22 +29,9 @@ namespace NzbDrone.Plugin.Deezer
 
             // prevent double hitting the Deezer API when there's no reason to
             if (_client.ActiveARL != arl)
-            {
                 _client.SetARL(arl).Wait();
-                _lastArlUpdate = DateTime.Now;
-            }
 
             return true;
-        }
-
-        internal void TryUpdateToken()
-        {
-            if ((DateTime.Now - _lastArlUpdate).TotalHours >= 24)
-            {
-                // refreshes the gw api token
-                _client.SetARL(_client.ActiveARL).Wait();
-                _lastArlUpdate = DateTime.Now;
-            }
         }
 
         public string GetGWUrl(string method, Dictionary<string, string> parameters = null)
