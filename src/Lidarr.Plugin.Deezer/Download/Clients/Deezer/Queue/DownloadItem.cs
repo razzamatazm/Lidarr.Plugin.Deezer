@@ -76,7 +76,12 @@ namespace NzbDrone.Core.Download.Clients.Deezer.Queue
         public async Task DoDownload(DeezerSettings settings, Logger logger, CancellationToken cancellation = default)
         {
             List<Task> tasks = new();
-            using SemaphoreSlim semaphore = new(1, 1);
+            // Track-level parallelism within an album. The plugin previously
+            // serialized to 1 because of upstream session-rotation bugs that
+            // made parallel calls trip Deezer abuse detection. Those are
+            // fixed now (see the SetARL/SetToken changes), so 3 — matching
+            // deemix's default — is a reasonable middle ground.
+            using SemaphoreSlim semaphore = new(3, 3);
             foreach (var (trackId, trackSize) in _tracks)
             {
                 tasks.Add(Task.Run(async () =>
