@@ -2,3 +2,7 @@
 	path = ext/Lidarr
 	url = https://github.com/Lidarr/Lidarr
 	branch = plugins
+[submodule "ext/DeezNET"]
+	path = ext/DeezNET
+	url = https://github.com/razzamatazm/DeezNET
+	branch = fix/ua-and-arl-cookie
