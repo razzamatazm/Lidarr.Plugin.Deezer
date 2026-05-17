@@ -107,10 +107,14 @@ namespace NzbDrone.Core.Download.Clients.Deezer.Queue
             }
 
             await Task.WhenAll(tasks);
-            if (FailedTracks > 0)
-                Status = DownloadItemStatus.Failed;
-            else
-                Status = DownloadItemStatus.Completed;
+            // Mark Completed unless EVERY track failed. Deezer often lacks
+            // FLAC for one or two random tracks on an album (regional/licensing
+            // quirks) and a partial download is far more useful to Lidarr than
+            // a total failure: Lidarr imports what's there, flags the rest as
+            // missing, and the user can manual-import or trigger a fresh search.
+            // Only when nothing succeeded do we surface Failed so Lidarr can
+            // try a different release.
+            Status = DownloadedSize > 0 ? DownloadItemStatus.Completed : DownloadItemStatus.Failed;
         }
 
         private async Task DoTrackDownload(long track, DeezerSettings settings, CancellationToken cancellation = default)
@@ -144,16 +148,30 @@ namespace NzbDrone.Core.Download.Clients.Deezer.Queue
             }
             catch (NoSourcesAvailableException)
             {
-                // media.deezer.com returned no sources for this bitrate. The
-                // license_token in ActiveUserData (captured once on initial
-                // login) goes stale faster than the sid cookie does — Deezer
+                // media.deezer.com returned no sources for this bitrate. First
+                // try refreshing the license_token cached in ActiveUserData —
+                // it goes stale faster than the sid cookie does and Deezer
                 // silently 200s with an empty Sources array rather than
                 // returning VALID_TOKEN_REQUIRED, so DeezNET's gw-light retry
-                // path never triggers. Refresh by re-calling getUserData and
-                // try once more. If it still fails, the track genuinely lacks
-                // this format and we let the exception propagate to Lidarr.
+                // path never triggers.
                 await DeezerAPI.Instance.Client.GWApi.SetToken(cancellation);
-                await DeezerAPI.Instance.Client.Downloader.WriteRawTrackToFile(track, outPath, Bitrate, null, cancellation);
+                try
+                {
+                    await DeezerAPI.Instance.Client.Downloader.WriteRawTrackToFile(track, outPath, Bitrate, null, cancellation);
+                }
+                catch (NoSourcesAvailableException) when (Bitrate == Bitrate.FLAC)
+                {
+                    // Genuine FLAC unavailability after a fresh license_token.
+                    // Some tracks on Deezer simply aren't offered in FLAC
+                    // (regional/licensing). Fall back to MP3_320 (then MP3_128)
+                    // so the rest of the album can still import. Rename the
+                    // extension to .mp3 to keep the file honest — Lidarr will
+                    // import it at the lower quality and the album will show
+                    // mixed quality, which the user can re-search later if
+                    // they want.
+                    var mp3Path = Path.ChangeExtension(outPath, "mp3");
+                    await DeezerAPI.Instance.Client.Downloader.WriteRawTrackToFile(track, mp3Path, Bitrate.MP3_320, Bitrate.MP3_128, cancellation);
+                }
             }
 
             var plainLyrics = string.Empty;
