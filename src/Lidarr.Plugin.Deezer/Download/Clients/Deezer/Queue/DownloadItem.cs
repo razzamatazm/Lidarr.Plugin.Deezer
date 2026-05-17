@@ -133,7 +133,23 @@ namespace NzbDrone.Core.Download.Clients.Deezer.Queue
             if (!Directory.Exists(outDir))
                 Directory.CreateDirectory(outDir);
 
-            await DeezerAPI.Instance.Client.Downloader.WriteRawTrackToFile(track, outPath, Bitrate, null, cancellation);
+            try
+            {
+                await DeezerAPI.Instance.Client.Downloader.WriteRawTrackToFile(track, outPath, Bitrate, null, cancellation);
+            }
+            catch (NoSourcesAvailableException)
+            {
+                // media.deezer.com returned no sources for this bitrate. The
+                // license_token in ActiveUserData (captured once on initial
+                // login) goes stale faster than the sid cookie does — Deezer
+                // silently 200s with an empty Sources array rather than
+                // returning VALID_TOKEN_REQUIRED, so DeezNET's gw-light retry
+                // path never triggers. Refresh by re-calling getUserData and
+                // try once more. If it still fails, the track genuinely lacks
+                // this format and we let the exception propagate to Lidarr.
+                await DeezerAPI.Instance.Client.GWApi.SetToken(cancellation);
+                await DeezerAPI.Instance.Client.Downloader.WriteRawTrackToFile(track, outPath, Bitrate, null, cancellation);
+            }
 
             var plainLyrics = string.Empty;
             List<SyncLyrics> syncLyrics = null;
