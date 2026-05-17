@@ -59,32 +59,44 @@ namespace NzbDrone.Core.Indexers.Deezer
             var size128 = albumPage["SONGS"]!["data"]!.Sum(d => d["FILESIZE_MP3_128"]!.Value<long>());
             var size320 = albumPage["SONGS"]!["data"]!.Sum(d => d["FILESIZE_MP3_320"]!.Value<long>());
             var sizeFlac = albumPage["SONGS"]!["data"]!.Sum(d => d["FILESIZE_FLAC"]!.Value<long>());
+            var trackCount = albumPage["SONGS"]!["data"]!.Count();
+
+            var userOptions = DeezerAPI.Instance.Client.GWApi.ActiveUserData["USER"]!["OPTIONS"]!;
+            var hasHq = userOptions["web_hq"]!.Value<bool>();
+            var hasLossless = userOptions["web_lossless"]!.Value<bool>();
 
             // Skip release entries that Deezer can't actually fulfill: if every
             // track has FILESIZE_X == 0 for a given bitrate, Deezer has no
             // sources for that format. Older catalog albums commonly lack FLAC
             // even when newer Remixed/Deluxe variants of the same album do.
+            var flacAvailable = sizeFlac > 0 && hasLossless;
+            var mp3_320Available = size320 > 0 && hasHq;
+            var mp3_128Available = size128 > 0;
 
-            // MP3 128
-            if (size128 > 0)
-                torrentInfos.Add(ToReleaseInfo(result, 1, size128));
-
-            // MP3 320
-            if (size320 > 0 && DeezerAPI.Instance.Client.GWApi.ActiveUserData["USER"]!["OPTIONS"]!["web_hq"]!.Value<bool>())
+            if (Settings.OnlyBestQuality)
             {
-                torrentInfos.Add(ToReleaseInfo(result, 3, size320));
+                // Single row per album at the highest entitled+available bitrate.
+                if (flacAvailable)
+                    torrentInfos.Add(ToReleaseInfo(result, 9, sizeFlac, trackCount));
+                else if (mp3_320Available)
+                    torrentInfos.Add(ToReleaseInfo(result, 3, size320, trackCount));
+                else if (mp3_128Available)
+                    torrentInfos.Add(ToReleaseInfo(result, 1, size128, trackCount));
             }
-
-            // FLAC
-            if (sizeFlac > 0 && DeezerAPI.Instance.Client.GWApi.ActiveUserData["USER"]!["OPTIONS"]!["web_lossless"]!.Value<bool>())
+            else
             {
-                torrentInfos.Add(ToReleaseInfo(result, 9, sizeFlac));
+                if (mp3_128Available)
+                    torrentInfos.Add(ToReleaseInfo(result, 1, size128, trackCount));
+                if (mp3_320Available)
+                    torrentInfos.Add(ToReleaseInfo(result, 3, size320, trackCount));
+                if (flacAvailable)
+                    torrentInfos.Add(ToReleaseInfo(result, 9, sizeFlac, trackCount));
             }
 
             return torrentInfos;
         }
 
-        private static ReleaseInfo ToReleaseInfo(DeezerGwAlbum x, int bitrate, long size)
+        private static ReleaseInfo ToReleaseInfo(DeezerGwAlbum x, int bitrate, long size, int trackCount)
         {
             var publishDate = DateTime.UtcNow;
             var year = 0;
@@ -141,6 +153,11 @@ namespace NzbDrone.Core.Indexers.Deezer
             {
                 result.Title += $" ({year})";
             }
+
+            // Track count makes the multiple-Deezer-album-IDs-for-same-title
+            // case (standard vs deluxe vs single-disc vs EP) visually
+            // distinguishable in Lidarr's interactive search.
+            result.Title += $" [{trackCount}tr]";
 
             if (x.Explicit)
             {
