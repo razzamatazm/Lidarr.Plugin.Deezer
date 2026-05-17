@@ -72,7 +72,6 @@ namespace NzbDrone.Core.Download.Clients.Deezer.Queue
         private (long id, long size)[] _tracks;
         private DeezerURL _deezerUrl;
         private JToken _deezerAlbum;
-        private DateTime _lastARLValidityCheck = DateTime.MinValue;
 
         public async Task DoDownload(DeezerSettings settings, Logger logger, CancellationToken cancellation = default)
         {
@@ -181,13 +180,16 @@ namespace NzbDrone.Core.Download.Clients.Deezer.Queue
 
         public void EnsureValidity()
         {
-            if ((DateTime.Now - _lastARLValidityCheck).TotalMinutes > 30)
-            {
-                _lastARLValidityCheck = DateTime.Now;
-                var arlValid = ARLUtilities.IsValid(DeezerAPI.Instance.Client.ActiveARL);
-                if (!arlValid)
-                    throw new InvalidARLException("The applied ARL is not valid for downloading, cannot continue.");
-            }
+            // Inspect the user data captured at initial login. Do NOT call SetARL
+            // here — it hits deezer.getUserData, which Deezer treats as a fresh
+            // session and rotates the sid, invalidating any other client (e.g.
+            // a parallel deemix container) using the same ARL. If the session
+            // has actually expired, DeezNET's GWApi.Call will retry via
+            // SetToken on VALID_TOKEN_REQUIRED.
+            var userData = DeezerAPI.Instance?.Client?.GWApi?.ActiveUserData;
+            var userId = userData?["USER"]?["USER_ID"]?.Value<long>() ?? 0;
+            if (userId == 0)
+                throw new InvalidARLException("The applied ARL is not valid for downloading, cannot continue.");
         }
 
         private async Task SetDeezerData(CancellationToken cancellation = default)
