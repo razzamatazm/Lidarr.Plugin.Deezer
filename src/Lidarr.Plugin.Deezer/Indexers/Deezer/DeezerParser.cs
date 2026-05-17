@@ -60,17 +60,23 @@ namespace NzbDrone.Core.Indexers.Deezer
             var size320 = albumPage["SONGS"]!["data"]!.Sum(d => d["FILESIZE_MP3_320"]!.Value<long>());
             var sizeFlac = albumPage["SONGS"]!["data"]!.Sum(d => d["FILESIZE_FLAC"]!.Value<long>());
 
+            // Skip release entries that Deezer can't actually fulfill: if every
+            // track has FILESIZE_X == 0 for a given bitrate, Deezer has no
+            // sources for that format. Older catalog albums commonly lack FLAC
+            // even when newer Remixed/Deluxe variants of the same album do.
+
             // MP3 128
-            torrentInfos.Add(ToReleaseInfo(result, 1, size128));
+            if (size128 > 0)
+                torrentInfos.Add(ToReleaseInfo(result, 1, size128));
 
             // MP3 320
-            if (DeezerAPI.Instance.Client.GWApi.ActiveUserData["USER"]!["OPTIONS"]!["web_hq"]!.Value<bool>())
+            if (size320 > 0 && DeezerAPI.Instance.Client.GWApi.ActiveUserData["USER"]!["OPTIONS"]!["web_hq"]!.Value<bool>())
             {
                 torrentInfos.Add(ToReleaseInfo(result, 3, size320));
             }
 
             // FLAC
-            if (DeezerAPI.Instance.Client.GWApi.ActiveUserData["USER"]!["OPTIONS"]!["web_lossless"]!.Value<bool>())
+            if (sizeFlac > 0 && DeezerAPI.Instance.Client.GWApi.ActiveUserData["USER"]!["OPTIONS"]!["web_lossless"]!.Value<bool>())
             {
                 torrentInfos.Add(ToReleaseInfo(result, 9, sizeFlac));
             }
