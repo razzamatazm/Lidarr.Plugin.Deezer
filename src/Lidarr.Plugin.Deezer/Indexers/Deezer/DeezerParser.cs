@@ -57,7 +57,15 @@ namespace NzbDrone.Core.Indexers.Deezer
                 return null; // return null if missing any tracks
 
             var songs = albumPage["SONGS"]!["data"]!;
-            var trackCount = songs.Count();
+            var listedCount = songs.Count();
+
+            // Deezer's NUMBER_TRACK is the declared album total. When Deezer's
+            // catalog only has a subset, listedCount < declared and we want
+            // the user to see "[10/11tk]" rather than just "[10tk]". Parse
+            // defensively — NUMBER_TRACK is a string and sometimes missing.
+            var declaredCount = listedCount;
+            if (int.TryParse(result.TrackCount, NumberStyles.Integer, CultureInfo.InvariantCulture, out var nb) && nb > listedCount)
+                declaredCount = nb;
 
             var size128 = songs.Sum(d => d["FILESIZE_MP3_128"]!.Value<long>());
             var size320 = songs.Sum(d => d["FILESIZE_MP3_320"]!.Value<long>());
@@ -87,20 +95,20 @@ namespace NzbDrone.Core.Indexers.Deezer
             {
                 // Single row per album at the highest entitled+available bitrate.
                 if (flacAvailable)
-                    torrentInfos.Add(ToReleaseInfo(result, 9, sizeFlac, trackCount, availFlac));
+                    torrentInfos.Add(ToReleaseInfo(result, 9, sizeFlac, declaredCount, availFlac));
                 else if (mp3_320Available)
-                    torrentInfos.Add(ToReleaseInfo(result, 3, size320, trackCount, avail320));
+                    torrentInfos.Add(ToReleaseInfo(result, 3, size320, declaredCount, avail320));
                 else if (mp3_128Available)
-                    torrentInfos.Add(ToReleaseInfo(result, 1, size128, trackCount, avail128));
+                    torrentInfos.Add(ToReleaseInfo(result, 1, size128, declaredCount, avail128));
             }
             else
             {
                 if (mp3_128Available)
-                    torrentInfos.Add(ToReleaseInfo(result, 1, size128, trackCount, avail128));
+                    torrentInfos.Add(ToReleaseInfo(result, 1, size128, declaredCount, avail128));
                 if (mp3_320Available)
-                    torrentInfos.Add(ToReleaseInfo(result, 3, size320, trackCount, avail320));
+                    torrentInfos.Add(ToReleaseInfo(result, 3, size320, declaredCount, avail320));
                 if (flacAvailable)
-                    torrentInfos.Add(ToReleaseInfo(result, 9, sizeFlac, trackCount, availFlac));
+                    torrentInfos.Add(ToReleaseInfo(result, 9, sizeFlac, declaredCount, availFlac));
             }
 
             return torrentInfos;
