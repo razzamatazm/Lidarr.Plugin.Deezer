@@ -56,10 +56,20 @@ namespace NzbDrone.Core.Indexers.Deezer
             if (Settings.HideAlbumsWithMissing && missing > 0)
                 return null; // return null if missing any tracks
 
-            var size128 = albumPage["SONGS"]!["data"]!.Sum(d => d["FILESIZE_MP3_128"]!.Value<long>());
-            var size320 = albumPage["SONGS"]!["data"]!.Sum(d => d["FILESIZE_MP3_320"]!.Value<long>());
-            var sizeFlac = albumPage["SONGS"]!["data"]!.Sum(d => d["FILESIZE_FLAC"]!.Value<long>());
-            var trackCount = albumPage["SONGS"]!["data"]!.Count();
+            var songs = albumPage["SONGS"]!["data"]!;
+            var trackCount = songs.Count();
+
+            var size128 = songs.Sum(d => d["FILESIZE_MP3_128"]!.Value<long>());
+            var size320 = songs.Sum(d => d["FILESIZE_MP3_320"]!.Value<long>());
+            var sizeFlac = songs.Sum(d => d["FILESIZE_FLAC"]!.Value<long>());
+
+            // Per-bitrate availability: a track might be on Deezer in MP3 but
+            // not FLAC, so count separately per format. Title annotation later
+            // surfaces partial coverage so the user can see "[20/22tk]" before
+            // committing to a download.
+            var avail128 = songs.Count(d => d["FILESIZE_MP3_128"]!.Value<long>() > 0);
+            var avail320 = songs.Count(d => d["FILESIZE_MP3_320"]!.Value<long>() > 0);
+            var availFlac = songs.Count(d => d["FILESIZE_FLAC"]!.Value<long>() > 0);
 
             var userOptions = DeezerAPI.Instance.Client.GWApi.ActiveUserData["USER"]!["OPTIONS"]!;
             var hasHq = userOptions["web_hq"]!.Value<bool>();
@@ -77,26 +87,26 @@ namespace NzbDrone.Core.Indexers.Deezer
             {
                 // Single row per album at the highest entitled+available bitrate.
                 if (flacAvailable)
-                    torrentInfos.Add(ToReleaseInfo(result, 9, sizeFlac, trackCount));
+                    torrentInfos.Add(ToReleaseInfo(result, 9, sizeFlac, trackCount, availFlac));
                 else if (mp3_320Available)
-                    torrentInfos.Add(ToReleaseInfo(result, 3, size320, trackCount));
+                    torrentInfos.Add(ToReleaseInfo(result, 3, size320, trackCount, avail320));
                 else if (mp3_128Available)
-                    torrentInfos.Add(ToReleaseInfo(result, 1, size128, trackCount));
+                    torrentInfos.Add(ToReleaseInfo(result, 1, size128, trackCount, avail128));
             }
             else
             {
                 if (mp3_128Available)
-                    torrentInfos.Add(ToReleaseInfo(result, 1, size128, trackCount));
+                    torrentInfos.Add(ToReleaseInfo(result, 1, size128, trackCount, avail128));
                 if (mp3_320Available)
-                    torrentInfos.Add(ToReleaseInfo(result, 3, size320, trackCount));
+                    torrentInfos.Add(ToReleaseInfo(result, 3, size320, trackCount, avail320));
                 if (flacAvailable)
-                    torrentInfos.Add(ToReleaseInfo(result, 9, sizeFlac, trackCount));
+                    torrentInfos.Add(ToReleaseInfo(result, 9, sizeFlac, trackCount, availFlac));
             }
 
             return torrentInfos;
         }
 
-        private static ReleaseInfo ToReleaseInfo(DeezerGwAlbum x, int bitrate, long size, int trackCount)
+        private static ReleaseInfo ToReleaseInfo(DeezerGwAlbum x, int bitrate, long size, int trackCount, int availableTracks)
         {
             var publishDate = DateTime.UtcNow;
             var year = 0;
@@ -156,8 +166,13 @@ namespace NzbDrone.Core.Indexers.Deezer
 
             // Track count makes the multiple-Deezer-album-IDs-for-same-title
             // case (standard vs deluxe vs single-disc vs EP) visually
-            // distinguishable in Lidarr's interactive search.
-            result.Title += $" [{trackCount}tr]";
+            // distinguishable in Lidarr's interactive search. If some tracks
+            // aren't available in the requested bitrate, surface it as
+            // "[20/22tk]" so the user sees partial coverage before grabbing.
+            if (availableTracks < trackCount)
+                result.Title += $" [{availableTracks}/{trackCount}tk]";
+            else
+                result.Title += $" [{trackCount}tk]";
 
             if (x.Explicit)
             {
